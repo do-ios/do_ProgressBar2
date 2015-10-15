@@ -12,6 +12,7 @@
 #import "doUIModuleHelper.h"
 #import "doScriptEngineHelper.h"
 #import "doIScriptEngine.h"
+#define SDProgressViewItemMargin 10
 
 @implementation do_ProgressBar2_UIView
 #pragma mark - doIUIModuleView协议方法（必须）
@@ -35,6 +36,13 @@
     
     //重新调整视图的x,y,w,h
     [doUIModuleHelper OnRedraw:_model];
+    self.progressBgColor = [_model GetProperty:@"progressBgColor"].DefaultValue;
+    self.progress = [[_model GetProperty:@"progress"].DefaultValue floatValue];
+    self.progressColor = [_model GetProperty:@"progressColor"].DefaultValue;
+    self.progressWidth = [_model GetProperty:@"progressWidth"].DefaultValue;
+    self.style = [_model GetProperty:@"style"].DefaultValue;
+    self.fontSize = [[_model GetProperty:@"fontSize"].DefaultValue integerValue];
+    self.fontColor = [_model GetProperty:@"fontColor"].DefaultValue;
     [self drawProgress:CGRectMake(_model.RealX, _model.RealY, _model.RealWidth, _model.RealHeight)];
 }
 
@@ -100,30 +108,22 @@
 - (void)drawProgress:(CGRect)rect
 {
     CGContextRef ctx = UIGraphicsGetCurrentContext();
-    
-    CGFloat xCenter = rect.size.width * 0.5;
-    CGFloat yCenter = rect.size.height * 0.5;
-    CGFloat radius = MIN(rect.size.width * 0.5, rect.size.height * 0.5);
+    NSLog(@"aaaaaa");
+    CGFloat xCenter = (rect.size.width * 0.5) + rect.origin.x;
+    CGFloat yCenter = (rect.size.height * 0.5) + rect.origin.y;
+    CGFloat radius = MIN(rect.size.width * 0.5, rect.size.height * 0.5) - SDProgressViewItemMargin * 0.2;
     
     // 进度环边框
     [[UIColor grayColor] set];
     CGFloat w = radius * 2 + 1;
     CGFloat h = w;
-    CGFloat x = (rect.size.width - w) * 0.5;
-    CGFloat y = (rect.size.height - h) * 0.5;
+    CGFloat x = (rect.size.width - w) * 0.5 + rect.origin.x;
+    CGFloat y = (rect.size.height - h) * 0.5 + rect.origin.y;
     CGContextAddEllipseInRect(ctx, CGRectMake(x, y, w, h));
     CGContextStrokePath(ctx);
     
     // 进度环
-    NSArray *progressBgColorArray = [self.progressBgColor componentsSeparatedByString:@","];
-    if (progressBgColorArray.count == 4)
-    {
-        CGFloat r = [progressBgColorArray[0] floatValue];
-        CGFloat g = [progressBgColorArray[1] floatValue];
-        CGFloat b = [progressBgColorArray[2] floatValue];
-        CGFloat a = [progressBgColorArray[3] floatValue];
-        [[UIColor colorWithRed:((r) / 255.0) green:((g) / 255.0) blue:((b) / 255.0) alpha:(a)] set];
-    }
+    [[self colorWithHexString:self.progressBgColor] set];
     CGContextMoveToPoint(ctx, xCenter, yCenter);
     CGContextAddLineToPoint(ctx, xCenter, 0);
     CGFloat to = - M_PI * 0.5 + self.progress * M_PI * 2 + 0.001; // 初始值
@@ -132,18 +132,8 @@
     CGContextFillPath(ctx);
     
     // 遮罩
-//    [SDColorMaker(240, 240, 240, 1) set];
-    NSArray *progressColorArray = [self.progressColor componentsSeparatedByString:@","];
-    if (progressBgColorArray.count == 4)
-    {
-        CGFloat r = [progressColorArray[0] floatValue];
-        CGFloat g = [progressColorArray[1] floatValue];
-        CGFloat b = [progressColorArray[2] floatValue];
-        CGFloat a = [progressColorArray[3] floatValue];
-        [[UIColor colorWithRed:((r) / 255.0) green:((g) / 255.0) blue:((b) / 255.0) alpha:(a)] set];
-    }
-    
-    CGFloat maskW = radius * [self.progressWidth floatValue] / 100.0;
+    [[self colorWithHexString: self.progressColor] set];
+    CGFloat maskW = (radius - [self.progressWidth floatValue]) * 2;
     CGFloat maskH = maskW;
     CGFloat maskX = (rect.size.width - maskW) * 0.5;
     CGFloat maskY = (rect.size.height - maskH) * 0.5;
@@ -164,17 +154,7 @@
         self.text = [NSString stringWithFormat:@"%.0f%s", self.progress * 100, "\%"];
         NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
         attributes[NSFontAttributeName] = [UIFont boldSystemFontOfSize:self.fontSize];
-        NSArray *fontColorArray = [self.fontColor componentsSeparatedByString:@","];
-        UIColor *fColor;
-        if (fontColorArray.count == 4)
-        {
-            CGFloat r = [fontColorArray[0] floatValue];
-            CGFloat g = [fontColorArray[1] floatValue];
-            CGFloat b = [fontColorArray[2] floatValue];
-            CGFloat a = [fontColorArray[3] floatValue];
-            fColor = [UIColor colorWithRed:((r) / 255.0) green:((g) / 255.0) blue:((b) / 255.0) alpha:(a)];
-        }
-        
+        UIColor *fColor = [self colorWithHexString: self.fontColor];
         attributes[NSForegroundColorAttributeName] = [UIColor colorWithCGColor:(__bridge CGColorRef)(fColor)];
         [self setCenterProgressText:self.text withAttributes:attributes];
     }
@@ -182,8 +162,8 @@
 
 - (void)setCenterProgressText:(NSString *)text withAttributes:(NSDictionary *)attributes
 {
-    CGFloat xCenter = self.frame.size.width * 0.5;
-    CGFloat yCenter = self.frame.size.height * 0.5;
+    CGFloat xCenter = (self.frame.size.width * 0.5) + self.frame.origin.x;
+    CGFloat yCenter = (self.frame.size.height * 0.5) + self.frame.origin.y;
     
     // 判断系统版本
     if ([[UIDevice currentDevice].systemVersion floatValue] >= 7.0) {
@@ -207,6 +187,51 @@
         
         [attrStr drawAtPoint:CGPointMake(strX, strY)];
     }
+}
+
+- (UIColor *) colorWithHexString: (NSString *)colorString
+{
+    NSString *cString = [[colorString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] uppercaseString];
+    
+    // String should be 6 or 8 characters
+    if ([cString length] < 6) {
+        return [UIColor clearColor];
+    }
+    
+    // strip 0X if it appears
+    if ([cString hasPrefix:@"0X"])
+        cString = [cString substringFromIndex:2];
+    if ([cString hasPrefix:@"#"])
+        cString = [cString substringFromIndex:1];
+    if ([cString length] != 6)
+        return [UIColor clearColor];
+    
+    // Separate into r, g, b a substrings
+    NSRange range;
+    range.location = 0;
+    range.length = 2;
+    
+    //r
+    NSString *rString = [cString substringWithRange:range];
+    
+    //g
+    range.location = 2;
+    NSString *gString = [cString substringWithRange:range];
+    
+    //b
+    range.location = 4;
+    NSString *bString = [cString substringWithRange:range];
+    
+    //r
+    range.location = 6;
+    NSString *aString = [cString substringWithRange:range];
+    // Scan values
+    unsigned int r, g, b, a;
+    [[NSScanner scannerWithString:rString] scanHexInt:&r];
+    [[NSScanner scannerWithString:gString] scanHexInt:&g];
+    [[NSScanner scannerWithString:bString] scanHexInt:&b];
+    [[NSScanner scannerWithString:aString] scanHexInt:&a];
+    return [UIColor colorWithRed:((float) r / 255.0f) green:((float) g / 255.0f) blue:((float) b / 255.0f) alpha:((float) a / 255.0f)];
 }
 
 #pragma mark - doIUIModuleView协议方法（必须）<大部分情况不需修改>
