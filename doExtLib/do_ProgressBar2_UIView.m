@@ -14,7 +14,23 @@
 #import "doIScriptEngine.h"
 #define SDProgressViewItemMargin 10
 
+@interface do_ProgressBar2_UIView()
+@property (nonatomic,strong)NSString *fontColor;
+@property (nonatomic,assign)NSInteger fontSize;
+@property (nonatomic,assign)CGFloat progress;
+@property (nonatomic,strong)NSString *progressColor;
+@property (nonatomic,strong)NSString *progressBgColor;
+@property (nonatomic,strong)NSString *progressWidth;
+@property (nonatomic,strong)NSString *style;
+@property (nonatomic,strong)NSString *text;
+@property (nonatomic,strong) NSTimer *animationTimer;
+
+@end
 @implementation do_ProgressBar2_UIView
+{
+    CGFloat _angleInterval;
+    CGFloat _currentProgress;
+}
 #pragma mark - doIUIModuleView协议方法（必须）
 //引用Model对象
 - (void) LoadView: (doUIModule *) _doUIModule
@@ -23,11 +39,16 @@
     if (self) {
         self.backgroundColor = [UIColor clearColor];
     }
+    self.style = [_model GetProperty:@"style"].DefaultValue;
+    self.fontSize = [[_model GetProperty:@"fontSize"].DefaultValue integerValue];
+    self.fontColor = [_model GetProperty:@"fontColor"].DefaultValue;
 }
 //销毁所有的全局对象
 - (void) OnDispose
 {
     //自定义的全局属性,view-model(UIModel)类销毁时会递归调用<子view-model(UIModel)>的该方法，将上层的引用切断。所以如果self类有非原生扩展，需主动调用view-model(UIModel)的该方法。(App || Page)-->强引用-->view-model(UIModel)-->强引用-->view
+    [self.animationTimer invalidate];
+    self.animationTimer = nil;
 }
 //实现布局
 - (void) OnRedraw
@@ -36,14 +57,7 @@
     
     //重新调整视图的x,y,w,h
     [doUIModuleHelper OnRedraw:_model];
-//    self.progressBgColor = [_model GetProperty:@"progressBgColor"].DefaultValue;
-//    self.progress = [[_model GetProperty:@"progress"].DefaultValue floatValue];
-//    self.progressColor = [_model GetProperty:@"progressColor"].DefaultValue;
-//    self.progressWidth = [_model GetProperty:@"progressWidth"].DefaultValue;
-    self.style = [_model GetProperty:@"style"].DefaultValue;
-    self.fontSize = [[_model GetProperty:@"fontSize"].DefaultValue integerValue];
-//    self.fontColor = [_model GetProperty:@"fontColor"].DefaultValue;
-//    [self drawProgress:CGRectMake(_model.RealX, _model.RealY, _model.RealWidth, _model.RealHeight)];
+    [self setNeedsDisplay];
 }
 
 #pragma mark - TYPEID_IView协议方法（必须）
@@ -59,46 +73,71 @@
 {
     //自己的代码实现
     self.fontColor = newValue;
+    [self setNeedsDisplay];
 }
 - (void)change_fontSize:(NSString *)newValue
 {
     //自己的代码实现
     self.fontSize = [newValue integerValue];
+    [self setNeedsDisplay];
 }
 - (void)change_progress:(NSString *)newValue
 {
     //自己的代码实现
     self.progress = [newValue floatValue];
-    [self setNeedsDisplay];
+    _currentProgress = 0.0;
+    if ([self.style isEqualToString:@"normal"]) {
+        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.005 target:self selector:@selector(changeProgress) userInfo:nil repeats:YES];
+        [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
+        self.animationTimer = timer;
+    }
 }
 - (void)change_progressBgColor:(NSString *)newValue
 {
     //自己的代码实现
     self.progressBgColor = newValue;
+    if ([self.style isEqualToString:@"cycle"]) {
+        return;
+    }
     [self setNeedsDisplay];
 }
 - (void)change_progressColor:(NSString *)newValue
 {
     //自己的代码实现
     self.progressColor = newValue;
+    if ([self.style isEqualToString:@"cycle"]) {
+        return;
+    }
     [self setNeedsDisplay];
 }
 - (void)change_progressWidth:(NSString *)newValue
 {
     //自己的代码实现
     self.progressWidth = newValue;
+    if ([self.style isEqualToString:@"cycle"]) {
+        return;
+    }
     [self setNeedsDisplay];
 }
 - (void)change_style:(NSString *)newValue
 {
     //自己的代码实现
     self.style = newValue;
+    if ([newValue isEqualToString:@"cycle"]) {
+        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.06 target:self selector:@selector(changeAngle) userInfo:nil repeats:YES];
+        [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
+
+    }
+    else
+    {
+        [self.animationTimer fire];
+    }
 }
+
 - (void)change_text:(NSString *)newValue
 {
     //自己的代码实现
     self.text = newValue;
-//    [self drawText];
     [self setNeedsDisplay];
 }
 
@@ -125,33 +164,39 @@
     CGFloat y = (rect.size.height - h) * 0.5 + rect.origin.y;
     CGContextAddEllipseInRect(ctx, CGRectMake(x, y, w, h));
     CGContextFillPath(ctx);
-    
+
     // 进度环
+    
+    CGFloat to;
     probgc = [doUIModuleHelper GetColorFromString:self.progressColor :[UIColor clearColor]];
     [probgc set];
-    CGContextMoveToPoint(ctx, xCenter, yCenter);
-    CGContextAddLineToPoint(ctx, xCenter, 0);
-    CGFloat to;
     if ([self.style isEqualToString:@"normal"]) {
-        to = - M_PI * 0.5 + self.progress / 100 * M_PI * 2 + 0.001; // 初始值
+        CGContextMoveToPoint(ctx, xCenter, yCenter);
+        CGContextAddLineToPoint(ctx, xCenter, 0);
+        to = - M_PI * 0.5 +_currentProgress / 100 * M_PI * 2 + 0.001; // 初始值
+        CGContextAddArc(ctx, xCenter, yCenter, radius, - M_PI_2, to, 0);
+        CGContextClosePath(ctx);
+        CGContextFillPath(ctx);
+
     }
     else
     {
-        to = M_PI_4 * 0.125;
+        CGContextSaveGState(ctx);
+        to = - M_PI_4 + _angleInterval;
+        CGContextSetLineWidth(ctx, [self.progressWidth floatValue]);
+        CGContextAddArc(ctx, xCenter, yCenter, radius - ([self.progressWidth floatValue]) /2, -_angleInterval, -to, 1);
+        CGContextStrokePath(ctx);
+        CGContextRestoreGState(ctx);
     }
-    CGContextAddArc(ctx, xCenter, yCenter, radius, - M_PI * 0.5, to, 0);
-    CGContextClosePath(ctx);
-    CGContextFillPath(ctx);
-    
     // 遮罩
     [[UIColor lightGrayColor] set];
-    CGFloat maskW = (radius - [self.progressWidth floatValue]) * 2;
+    CGFloat maskW = (radius - [self.progressWidth floatValue]) * 2 - 2;
     CGFloat maskH = maskW;
-    CGFloat maskX = (rect.size.width - maskW) * 0.5;
-    CGFloat maskY = (rect.size.height - maskH) * 0.5;
-    CGContextAddEllipseInRect(ctx, CGRectMake(maskX, maskY, maskW, maskH));
+    CGFloat maskX = (rect.size.width - maskW ) * 0.5 + 0.5;
+    CGFloat maskY = (rect.size.height - maskH ) * 0.5 + 0.5;
+    CGContextAddEllipseInRect(ctx, CGRectMake(maskX, maskY, maskW , maskH));
     CGContextFillPath(ctx);
-    
+
     // 遮罩边框
     [[UIColor grayColor] set];
     CGFloat borderW = maskW + 1;
@@ -160,15 +205,30 @@
     CGFloat borderY = (rect.size.height - borderH) * 0.5;
     CGContextAddEllipseInRect(ctx, CGRectMake(borderX, borderY, borderW, borderH));
     CGContextStrokePath(ctx);
-    if (!self.text || [self.style isEqualToString:@"cycle"]) {
+    if ([self.style isEqualToString:@"normal"]) {
+        NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
+        attributes[NSFontAttributeName] = [UIFont systemFontOfSize:self.fontSize];
+        attributes[NSForegroundColorAttributeName] = [doUIModuleHelper GetColorFromString:self.fontColor :[UIColor clearColor]];
+        CGSize fontSize = [self.text sizeWithAttributes:attributes];
+        [self.text drawAtPoint:CGPointMake(xCenter - (fontSize.width)/2, yCenter - (fontSize.height / 2)) withAttributes:attributes];
+    }
+    
+}
+- (void)changeAngle
+{
+    _angleInterval += M_PI * 0.08;
+    if (_angleInterval >= M_PI * 2) _angleInterval = 0;
+    [self setNeedsDisplay];
+}
+- (void)changeProgress
+{
+    if (_currentProgress >= self.progress) {
+        [self.animationTimer invalidate];
         return;
     }
-    NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
-    attributes[NSFontAttributeName] = [UIFont boldSystemFontOfSize:self.fontSize];
-    attributes[NSStrokeColorAttributeName] = [doUIModuleHelper GetColorFromString:self.fontColor :[UIColor clearColor]];
-    [self.text drawAtPoint:CGPointMake(xCenter, yCenter) withAttributes:attributes];
+    _currentProgress +=1;
+    [self setNeedsDisplay];
 }
-
 #pragma mark - doIUIModuleView协议方法（必须）<大部分情况不需修改>
 - (BOOL) OnPropertiesChanging: (NSMutableDictionary *) _changedValues
 {

@@ -17,12 +17,5 @@
 	@private
 		__weak do_ProgressBar2_UIModel *_model;
 }
-@property (nonatomic,strong)NSString *fontColor;
-@property (nonatomic,assign)NSInteger fontSize;
-@property (nonatomic,assign)CGFloat progress;
-@property (nonatomic,strong)NSString *progressColor;
-@property (nonatomic,strong)NSString *progressBgColor;
-@property (nonatomic,strong)NSString *progressWidth;
-@property (nonatomic,strong)NSString *style;
-@property (nonatomic,strong)NSString *text;
+
 @end
