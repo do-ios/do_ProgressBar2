@@ -87,7 +87,7 @@
     self.progress = [newValue floatValue];
     _currentProgress = 0.0;
     if ([self.style isEqualToString:@"normal"]) {
-        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.005 target:self selector:@selector(changeProgress) userInfo:nil repeats:YES];
+        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.00001 target:self selector:@selector(changeProgress) userInfo:nil repeats:YES];
         [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
         self.animationTimer = timer;
     }
@@ -223,11 +223,13 @@
 }
 - (void)changeProgress
 {
-    if (_currentProgress >= self.progress) {
+        _currentProgress +=0.5;
+    if (_currentProgress > self.progress) {
         [self.animationTimer invalidate];
+        _currentProgress -=0.5;
         return;
     }
-    _currentProgress +=1;
+
     [self setNeedsDisplay];
 }
 #pragma mark - doIUIModuleView协议方法（必须）<大部分情况不需修改>
