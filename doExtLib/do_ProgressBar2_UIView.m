@@ -191,23 +191,23 @@
     }
     // 遮罩
     
-    [[UIColor lightGrayColor] set];
+    [[UIColor whiteColor] set];
     CGFloat progressW = ([self.progressWidth floatValue]) / 100 * radius;
     CGFloat maskW = (radius - progressW) * 2 - 2;
     CGFloat maskH = maskW;
-    CGFloat maskX = (rect.size.width - maskW ) * 0.5 + 0.5;
-    CGFloat maskY = (rect.size.height - maskH ) * 0.5 + 0.5;
+    CGFloat maskX = (rect.size.width - maskW ) * 0.5;
+    CGFloat maskY = (rect.size.height - maskH ) * 0.5;
     CGContextAddEllipseInRect(ctx, CGRectMake(maskX, maskY, maskW , maskH));
     CGContextFillPath(ctx);
 
-    // 遮罩边框
-    [[UIColor grayColor] set];
-    CGFloat borderW = maskW + 1;
-    CGFloat borderH = borderW;
-    CGFloat borderX = (rect.size.width - borderW) * 0.5;
-    CGFloat borderY = (rect.size.height - borderH) * 0.5;
-    CGContextAddEllipseInRect(ctx, CGRectMake(borderX, borderY, borderW, borderH));
-    CGContextStrokePath(ctx);
+//    // 遮罩边框
+//    [[UIColor grayColor] set];
+//    CGFloat borderW = maskW + 1;
+//    CGFloat borderH = borderW;
+//    CGFloat borderX = (rect.size.width - borderW) * 0.5;
+//    CGFloat borderY = (rect.size.height - borderH) * 0.5;
+//    CGContextAddEllipseInRect(ctx, CGRectMake(borderX, borderY, borderW, borderH));
+//    CGContextStrokePath(ctx);
     if ([self.style isEqualToString:@"normal"]) {
         NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
         attributes[NSFontAttributeName] = [UIFont systemFontOfSize:self.fontSize];
