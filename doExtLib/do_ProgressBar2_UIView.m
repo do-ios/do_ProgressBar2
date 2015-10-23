@@ -183,15 +183,17 @@
     {
         CGContextSaveGState(ctx);
         to =  M_PI_4 + _angleInterval;
-        CGContextSetLineWidth(ctx, [self.progressWidth floatValue]);
-        CGContextAddArc(ctx, xCenter, yCenter, radius - ([self.progressWidth floatValue]) /2, _angleInterval, to, 0);
+        CGFloat lineW = ([self.progressWidth floatValue]) / 100 * radius;
+        CGContextSetLineWidth(ctx, lineW);
+        CGContextAddArc(ctx, xCenter, yCenter, radius - (lineW /2), _angleInterval, to, 0);
         CGContextStrokePath(ctx);
         CGContextRestoreGState(ctx);
     }
     // 遮罩
     
     [[UIColor lightGrayColor] set];
-    CGFloat maskW = (radius - [self.progressWidth floatValue]) * 2 - 2;
+    CGFloat progressW = ([self.progressWidth floatValue]) / 100 * radius;
+    CGFloat maskW = (radius - progressW) * 2 - 2;
     CGFloat maskH = maskW;
     CGFloat maskX = (rect.size.width - maskW ) * 0.5 + 0.5;
     CGFloat maskY = (rect.size.height - maskH ) * 0.5 + 0.5;
