@@ -209,7 +209,6 @@
         CGSize fontSize = [self.text sizeWithAttributes:attributes];
         [self.text drawAtPoint:CGPointMake(xCenter - (fontSize.width)/2, yCenter - (fontSize.height / 2)) withAttributes:attributes];
     }
-    [self captureView:self];
 }
 - (void)changeAngle
 {
