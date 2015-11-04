@@ -181,7 +181,7 @@
     else
     {
         CGContextSaveGState(ctx);
-        to =  - M_PI * 0.5 + _angleInterval;
+        to =  - M_PI * 0.15 + _angleInterval;
         CGFloat lineW = ([self.progressWidth floatValue]) / 100 * radius;
         if (lineW < 1) {
             lineW = 1;
