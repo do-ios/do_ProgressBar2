@@ -124,9 +124,8 @@
     //自己的代码实现
     self.style = newValue;
     if ([newValue isEqualToString:@"cycle"]) {
-        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.06 target:self selector:@selector(changeAngle) userInfo:nil repeats:YES];
+        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.01 target:self selector:@selector(changeAngle) userInfo:nil repeats:YES];
         [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
-
     }
     else
     {
@@ -154,6 +153,7 @@
     CGFloat xCenter = (rect.size.width * 0.5) + rect.origin.x;
     CGFloat yCenter = (rect.size.height * 0.5) + rect.origin.y;
     CGFloat radius = MIN(rect.size.width * 0.5, rect.size.height * 0.5) - SDProgressViewItemMargin * 0.2;
+
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     // 进度环边框
     UIColor *probgc = [doUIModuleHelper GetColorFromString:self.progressBgColor :[UIColor clearColor]];
@@ -166,7 +166,6 @@
     CGContextFillPath(ctx);
 
     // 进度环
-    
     CGFloat to;
     probgc = [doUIModuleHelper GetColorFromString:self.progressColor :[UIColor clearColor]];
     [probgc set];
@@ -182,16 +181,20 @@
     else
     {
         CGContextSaveGState(ctx);
-        to =  M_PI_4 + _angleInterval;
+        to =  - M_PI * 0.5 + _angleInterval;
         CGFloat lineW = ([self.progressWidth floatValue]) / 100 * radius;
+        if (lineW < 1) {
+            lineW = 1;
+        }
         CGContextSetLineWidth(ctx, lineW);
-        CGContextAddArc(ctx, xCenter, yCenter, radius - (lineW /2), _angleInterval, to, 0);
+        CGContextAddArc(ctx, xCenter, yCenter, radius - (lineW /2), to, _angleInterval, 0);
         CGContextStrokePath(ctx);
         CGContextRestoreGState(ctx);
+
     }
     // 遮罩
     
-    [[UIColor whiteColor] set];
+    [self.backgroundColor set];
     CGFloat progressW = ([self.progressWidth floatValue]) / 100 * radius;
     CGFloat maskW = (radius - progressW) * 2 - 2;
     CGFloat maskH = maskW;
@@ -199,15 +202,6 @@
     CGFloat maskY = (rect.size.height - maskH ) * 0.5;
     CGContextAddEllipseInRect(ctx, CGRectMake(maskX, maskY, maskW , maskH));
     CGContextFillPath(ctx);
-
-//    // 遮罩边框
-//    [[UIColor grayColor] set];
-//    CGFloat borderW = maskW + 1;
-//    CGFloat borderH = borderW;
-//    CGFloat borderX = (rect.size.width - borderW) * 0.5;
-//    CGFloat borderY = (rect.size.height - borderH) * 0.5;
-//    CGContextAddEllipseInRect(ctx, CGRectMake(borderX, borderY, borderW, borderH));
-//    CGContextStrokePath(ctx);
     if ([self.style isEqualToString:@"normal"]) {
         NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
         attributes[NSFontAttributeName] = [UIFont systemFontOfSize:self.fontSize];
@@ -215,11 +209,11 @@
         CGSize fontSize = [self.text sizeWithAttributes:attributes];
         [self.text drawAtPoint:CGPointMake(xCenter - (fontSize.width)/2, yCenter - (fontSize.height / 2)) withAttributes:attributes];
     }
-    
+    [self captureView:self];
 }
 - (void)changeAngle
 {
-    _angleInterval += M_PI * 0.08;
+    _angleInterval += M_PI * 0.01;
     if (_angleInterval >= M_PI * 2) _angleInterval = 0;
     [self setNeedsDisplay];
 }
@@ -234,6 +228,7 @@
 
     [self setNeedsDisplay];
 }
+
 #pragma mark - doIUIModuleView协议方法（必须）<大部分情况不需修改>
 - (BOOL) OnPropertiesChanging: (NSMutableDictionary *) _changedValues
 {
