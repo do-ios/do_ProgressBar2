@@ -20,7 +20,7 @@
 @property (nonatomic,assign)CGFloat progress;
 @property (nonatomic,strong)NSString *progressColor;
 @property (nonatomic,strong)NSString *progressBgColor;
-@property (nonatomic,strong)NSString *progressWidth;
+@property (nonatomic,assign)CGFloat  progressWidth;
 @property (nonatomic,strong)NSString *style;
 @property (nonatomic,strong)NSString *text;
 @property (nonatomic,strong) NSTimer *animationTimer;
@@ -39,6 +39,7 @@
     if (self) {
         self.backgroundColor = [UIColor clearColor];
     }
+    self.progressWidth = 1.0;
     self.style = [_model GetProperty:@"style"].DefaultValue;
     self.fontSize = [[_model GetProperty:@"fontSize"].DefaultValue integerValue];
     self.fontColor = [_model GetProperty:@"fontColor"].DefaultValue;
@@ -113,7 +114,11 @@
 - (void)change_progressWidth:(NSString *)newValue
 {
     //自己的代码实现
-    self.progressWidth = newValue;
+    CGFloat w = MIN(_model.RealWidth, _model.RealHeight) / 2;
+    self.progressWidth = [newValue floatValue];
+    if (w <= self.progressWidth) {
+        self.progressWidth = w - 2;
+    }
     if ([self.style isEqualToString:@"cycle"]) {
         return;
     }
@@ -150,64 +155,13 @@
 }
 - (void)drawRect:(CGRect)rect
 {
-    CGFloat xCenter = (rect.size.width * 0.5) + rect.origin.x;
-    CGFloat yCenter = (rect.size.height * 0.5) + rect.origin.y;
-    CGFloat radius = MIN(rect.size.width * 0.5, rect.size.height * 0.5) - SDProgressViewItemMargin * 0.2;
-
     CGContextRef ctx = UIGraphicsGetCurrentContext();
-    // 进度环边框
-    UIColor *probgc = [doUIModuleHelper GetColorFromString:self.progressBgColor :[UIColor clearColor]];
-    [probgc set];
-    CGFloat w = radius * 2 + 1;
-    CGFloat h = w;
-    CGFloat x = (rect.size.width - w) * 0.5 + rect.origin.x;
-    CGFloat y = (rect.size.height - h) * 0.5 + rect.origin.y;
-    CGContextAddEllipseInRect(ctx, CGRectMake(x, y, w, h));
-    CGContextFillPath(ctx);
-
-    // 进度环
-    CGFloat to;
-    probgc = [doUIModuleHelper GetColorFromString:self.progressColor :[UIColor clearColor]];
-    [probgc set];
     if ([self.style isEqualToString:@"normal"]) {
-        CGContextMoveToPoint(ctx, xCenter, yCenter);
-        CGContextAddLineToPoint(ctx, xCenter, 0);
-        to = - M_PI * 0.5 +_currentProgress / 100 * M_PI * 2 + 0.001; // 初始值
-        CGContextAddArc(ctx, xCenter, yCenter, radius, - M_PI_2, to, 0);
-        CGContextClosePath(ctx);
-        CGContextFillPath(ctx);
-
+        [self drawNormalStyle:ctx withRect:rect];
     }
     else
     {
-        CGContextSaveGState(ctx);
-        to =  - M_PI * 0.15 + _angleInterval;
-        CGFloat lineW = ([self.progressWidth floatValue]) / 100 * radius;
-        if (lineW < 1) {
-            lineW = 1;
-        }
-        CGContextSetLineWidth(ctx, lineW);
-        CGContextAddArc(ctx, xCenter, yCenter, radius - (lineW /2), to, _angleInterval, 0);
-        CGContextStrokePath(ctx);
-        CGContextRestoreGState(ctx);
-
-    }
-    // 遮罩
-    
-    [self.backgroundColor set];
-    CGFloat progressW = ([self.progressWidth floatValue]) / 100 * radius;
-    CGFloat maskW = (radius - progressW) * 2 - 2;
-    CGFloat maskH = maskW;
-    CGFloat maskX = (rect.size.width - maskW ) * 0.5;
-    CGFloat maskY = (rect.size.height - maskH ) * 0.5;
-    CGContextAddEllipseInRect(ctx, CGRectMake(maskX, maskY, maskW , maskH));
-    CGContextFillPath(ctx);
-    if ([self.style isEqualToString:@"normal"]) {
-        NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
-        attributes[NSFontAttributeName] = [UIFont systemFontOfSize:self.fontSize];
-        attributes[NSForegroundColorAttributeName] = [doUIModuleHelper GetColorFromString:self.fontColor :[UIColor clearColor]];
-        CGSize fontSize = [self.text sizeWithAttributes:attributes];
-        [self.text drawAtPoint:CGPointMake(xCenter - (fontSize.width)/2, yCenter - (fontSize.height / 2)) withAttributes:attributes];
+        [self drawCircleStyle:ctx withRect:rect];
     }
 }
 - (void)changeAngle
@@ -227,7 +181,53 @@
 
     [self setNeedsDisplay];
 }
+//绘制带进度的进度条
+- (void)drawNormalStyle:(CGContextRef)ctx withRect:(CGRect)rect
+{
+    CGFloat radius = MIN(rect.size.width, rect.size.height) / 2;
+    CGContextSaveGState(ctx);
+    CGContextSetLineWidth(ctx, self.progressWidth);
+    UIColor *probgc = [doUIModuleHelper GetColorFromString:self.progressBgColor :[UIColor clearColor]];
+    [probgc setStroke];
 
+    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - self.progressWidth, M_PI * 0, M_PI * 2, 1);
+    CGContextStrokePath(ctx);
+    CGContextRestoreGState(ctx);
+    
+    probgc = [doUIModuleHelper GetColorFromString:self.progressColor :[UIColor clearColor]];
+    [probgc setStroke];
+    CGContextSetLineWidth(ctx, self.progressWidth);
+    CGFloat to =_currentProgress / 100 * 2 *M_PI - 0.5 * M_PI; // 初始值
+    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - self.progressWidth, -M_PI * 0.5, to, 0);
+    CGContextStrokePath(ctx);
+    
+    NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
+    attributes[NSFontAttributeName] = [UIFont systemFontOfSize:self.fontSize];
+    attributes[NSForegroundColorAttributeName] = [doUIModuleHelper GetColorFromString:self.fontColor :[UIColor clearColor]];
+    CGSize fontSize = [self.text sizeWithAttributes:attributes];
+    [self.text drawAtPoint:CGPointMake(rect.size.width / 2 - (fontSize.width)/2, rect.size.height / 2 - (fontSize.height / 2)) withAttributes:attributes];
+}
+//绘制不带进度的样式
+- (void)drawCircleStyle:(CGContextRef)ctx withRect:(CGRect)rect
+{
+    CGFloat radius = MIN(rect.size.width, rect.size.height) / 2;
+    CGContextSaveGState(ctx);
+    CGContextSetLineWidth(ctx, self.progressWidth);
+    UIColor *probgc = [doUIModuleHelper GetColorFromString:self.progressBgColor :[UIColor clearColor]];
+    [probgc setStroke];
+    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - self.progressWidth, M_PI * 0, M_PI * 2, 1);
+    CGContextStrokePath(ctx);
+    CGContextRestoreGState(ctx);
+    
+    probgc = [doUIModuleHelper GetColorFromString:self.progressColor :[UIColor clearColor]];
+    [probgc setStroke];
+    CGContextSetLineWidth(ctx, self.progressWidth);
+    CGFloat to =  - M_PI * 0.15 + _angleInterval;
+    
+    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - self.progressWidth, to, _angleInterval, 1);
+    CGContextStrokePath(ctx);
+
+}
 #pragma mark - doIUIModuleView协议方法（必须）<大部分情况不需修改>
 - (BOOL) OnPropertiesChanging: (NSMutableDictionary *) _changedValues
 {
