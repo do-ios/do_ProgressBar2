@@ -74,12 +74,18 @@
 {
     //自己的代码实现
     self.fontColor = newValue;
+    if ([self.style isEqualToString:@"cycle"]) {
+        return;
+    }
     [self setNeedsDisplay];
 }
 - (void)change_fontSize:(NSString *)newValue
 {
     //自己的代码实现
     self.fontSize = [newValue integerValue];
+    if ([self.style isEqualToString:@"cycle"]) {
+        return;
+    }
     [self setNeedsDisplay];
 }
 - (void)change_progress:(NSString *)newValue
@@ -115,12 +121,12 @@
 {
     //自己的代码实现
     CGFloat w = MIN(_model.RealWidth, _model.RealHeight) / 2;
+    
     self.progressWidth = [newValue floatValue];
-    if (w <= self.progressWidth) {
-        self.progressWidth = w - 2;
-    }
-    if ([self.style isEqualToString:@"cycle"]) {
-        return;
+    
+    self.progressWidth = (self.progressWidth / 100.0f ) * w;
+    if (w < self.progressWidth) {
+        self.progressWidth = w;
     }
     [self setNeedsDisplay];
 }
@@ -142,6 +148,9 @@
 {
     //自己的代码实现
     self.text = newValue;
+    if ([self.style isEqualToString:@"cycle"]) {
+        return;
+    }
     [self setNeedsDisplay];
 }
 
@@ -190,7 +199,7 @@
     UIColor *probgc = [doUIModuleHelper GetColorFromString:self.progressBgColor :[UIColor clearColor]];
     [probgc setStroke];
 
-    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - self.progressWidth, M_PI * 0, M_PI * 2, 1);
+    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - (self.progressWidth / 2), M_PI * 0, M_PI * 2, 1);
     CGContextStrokePath(ctx);
     CGContextRestoreGState(ctx);
     
@@ -198,7 +207,7 @@
     [probgc setStroke];
     CGContextSetLineWidth(ctx, self.progressWidth);
     CGFloat to =_currentProgress / 100 * 2 *M_PI - 0.5 * M_PI; // 初始值
-    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - self.progressWidth, -M_PI * 0.5, to, 0);
+    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - (self.progressWidth / 2), -M_PI * 0.5, to, 0);
     CGContextStrokePath(ctx);
     
     NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
@@ -215,16 +224,16 @@
     CGContextSetLineWidth(ctx, self.progressWidth);
     UIColor *probgc = [doUIModuleHelper GetColorFromString:self.progressBgColor :[UIColor clearColor]];
     [probgc setStroke];
-    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - self.progressWidth, M_PI * 0, M_PI * 2, 1);
+    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - (self.progressWidth / 2), M_PI * 0, M_PI * 2, 1);
     CGContextStrokePath(ctx);
     CGContextRestoreGState(ctx);
     
     probgc = [doUIModuleHelper GetColorFromString:self.progressColor :[UIColor clearColor]];
     [probgc setStroke];
-    CGContextSetLineWidth(ctx, self.progressWidth);
+    CGContextSetLineWidth(ctx,self.progressWidth);
     CGFloat to =  - M_PI * 0.15 + _angleInterval;
     
-    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - self.progressWidth, to, _angleInterval, 1);
+    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2,  radius - (self.progressWidth / 2) , to, _angleInterval, 0);
     CGContextStrokePath(ctx);
 
 }
