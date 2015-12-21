@@ -11,7 +11,9 @@
 #import "doInvokeResult.h"
 #import "doUIModuleHelper.h"
 #import "doScriptEngineHelper.h"
+#import "doTextHelper.h"
 #import "doIScriptEngine.h"
+
 #define SDProgressViewItemMargin 10
 
 @interface do_ProgressBar2_UIView()
@@ -41,7 +43,8 @@
     }
     self.progressWidth = 1.0;
     self.style = [_model GetProperty:@"style"].DefaultValue;
-    self.fontSize = [[_model GetProperty:@"fontSize"].DefaultValue integerValue];
+    NSInteger fontSize = [[_model GetProperty:@"fontSize"].DefaultValue integerValue];
+    self.fontSize = [doUIModuleHelper GetDeviceFontSize:(int)fontSize :_model.XZoom :_model.YZoom];
     self.fontColor = [_model GetProperty:@"fontColor"].DefaultValue;
 }
 //销毁所有的全局对象
@@ -82,7 +85,7 @@
 - (void)change_fontSize:(NSString *)newValue
 {
     //自己的代码实现
-    self.fontSize = [newValue integerValue];
+    self.fontSize = [doUIModuleHelper GetDeviceFontSize:[[doTextHelper Instance] StrToInt:newValue :[[_model GetProperty:@"fontSize"].DefaultValue intValue]] :_model.XZoom :_model.YZoom];
     if ([self.style isEqualToString:@"cycle"]) {
         return;
     }
