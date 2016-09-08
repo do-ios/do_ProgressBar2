@@ -19,19 +19,19 @@
 @interface do_ProgressBar2_UIView()
 @property (nonatomic,strong)NSString *fontColor;
 @property (nonatomic,assign)NSInteger fontSize;
-@property (nonatomic,assign)CGFloat progress;
-@property (nonatomic,strong)NSString *progressColor;
-@property (nonatomic,strong)NSString *progressBgColor;
 @property (nonatomic,assign)CGFloat  progressWidth;
 @property (nonatomic,strong)NSString *style;
 @property (nonatomic,strong)NSString *text;
-@property (nonatomic,strong) NSTimer *animationTimer;
 
 @end
 @implementation do_ProgressBar2_UIView
 {
-    CGFloat _angleInterval;
     CGFloat _currentProgress;
+    //背景圆环
+    CAShapeLayer *ringBgLayer;
+    CAShapeLayer *indicatorLayer;
+    CAShapeLayer *progressLayer;
+
 }
 #pragma mark - doIUIModuleView协议方法（必须）
 //引用Model对象
@@ -42,17 +42,22 @@
         self.backgroundColor = [UIColor clearColor];
     }
     self.progressWidth = 1.0;
+    
     self.style = [_model GetProperty:@"style"].DefaultValue;
+    
+    
     NSInteger fontSize = [[_model GetProperty:@"fontSize"].DefaultValue integerValue];
     self.fontSize = [doUIModuleHelper GetDeviceFontSize:(int)fontSize :_model.XZoom :_model.YZoom];
+    
     self.fontColor = [_model GetProperty:@"fontColor"].DefaultValue;
+    [self setupBackgroudLayer];
+    
+    [self change_style:self.style];
 }
 //销毁所有的全局对象
 - (void) OnDispose
 {
     //自定义的全局属性,view-model(UIModel)类销毁时会递归调用<子view-model(UIModel)>的该方法，将上层的引用切断。所以如果self类有非原生扩展，需主动调用view-model(UIModel)的该方法。(App || Page)-->强引用-->view-model(UIModel)-->强引用-->view
-    [self.animationTimer invalidate];
-    self.animationTimer = nil;
 }
 //实现布局
 - (void) OnRedraw
@@ -61,7 +66,6 @@
     
     //重新调整视图的x,y,w,h
     [doUIModuleHelper OnRedraw:_model];
-    [self setNeedsDisplay];
 }
 
 #pragma mark - TYPEID_IView协议方法（必须）
@@ -77,48 +81,44 @@
 {
     //自己的代码实现
     self.fontColor = newValue;
-    if ([self.style isEqualToString:@"cycle"]) {
-        return;
-    }
-    [self setNeedsDisplay];
 }
 - (void)change_fontSize:(NSString *)newValue
 {
     //自己的代码实现
     self.fontSize = [doUIModuleHelper GetDeviceFontSize:[[doTextHelper Instance] StrToInt:newValue :[[_model GetProperty:@"fontSize"].DefaultValue intValue]] :_model.XZoom :_model.YZoom];
-    if ([self.style isEqualToString:@"cycle"]) {
-        return;
-    }
-    [self setNeedsDisplay];
 }
 - (void)change_progress:(NSString *)newValue
 {
     //自己的代码实现
-    self.progress = [newValue floatValue];
-    _currentProgress = 0.0;
+    CGFloat temp = fabs([newValue floatValue]/100.0);
+    CGFloat progress = MAX(MIN(temp, 1.0), 0.0);
     if ([self.style isEqualToString:@"normal"]) {
-        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.00001 target:self selector:@selector(changeProgress) userInfo:nil repeats:YES];
-        [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
-        self.animationTimer = timer;
+        if (progressLayer) {
+            progressLayer.strokeEnd = progress;
+        }
+        else
+        {
+            _currentProgress = progress;
+        }
     }
 }
 - (void)change_progressBgColor:(NSString *)newValue
 {
     //自己的代码实现
-    self.progressBgColor = newValue;
-    if ([self.style isEqualToString:@"cycle"]) {
-        return;
-    }
-    [self setNeedsDisplay];
+    UIColor *probgc = [doUIModuleHelper GetColorFromString:newValue :[UIColor clearColor]];
+    ringBgLayer.strokeColor = probgc.CGColor;
 }
 - (void)change_progressColor:(NSString *)newValue
 {
     //自己的代码实现
-    self.progressColor = newValue;
-    if ([self.style isEqualToString:@"cycle"]) {
-        return;
+    UIColor *probgc = [doUIModuleHelper GetColorFromString:newValue :[UIColor clearColor]];
+    if ([[self.style lowercaseString] isEqualToString:@"normal"]) {
+        progressLayer.strokeColor = probgc.CGColor;
     }
-    [self setNeedsDisplay];
+    else
+    {
+        indicatorLayer.strokeColor = probgc.CGColor;
+    }
 }
 - (void)change_progressWidth:(NSString *)newValue
 {
@@ -131,19 +131,30 @@
     if (w < self.progressWidth) {
         self.progressWidth = w;
     }
-    [self setNeedsDisplay];
+    ringBgLayer.lineWidth = self.progressWidth;
+    ringBgLayer.path = [self layoutPathWithScale:1].CGPath;
+    if ([[self.style lowercaseString]isEqualToString:@"normal"]) {
+        progressLayer.lineWidth = self.progressWidth;
+        progressLayer.path = [self layoutPath].CGPath;
+    }
+    else
+    {
+        indicatorLayer.lineWidth = self.progressWidth;
+        indicatorLayer.path = [self layoutPathWithScale:1].CGPath;
+    }
 }
 - (void)change_style:(NSString *)newValue
 {
     //自己的代码实现
     self.style = newValue;
-    if ([newValue isEqualToString:@"cycle"]) {
-        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.01 target:self selector:@selector(changeAngle) userInfo:nil repeats:YES];
-        [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
+    if ([newValue isEqualToString:@"cycle"])
+    {
+        [self setupAnimationLayer];
+        [self startAnimation];
     }
     else
     {
-        [self.animationTimer fire];
+        [self setupRingAnimationLayer];
     }
 }
 
@@ -151,95 +162,124 @@
 {
     //自己的代码实现
     self.text = newValue;
-    if ([self.style isEqualToString:@"cycle"]) {
-        return;
+    if ([[self.style lowercaseString] isEqualToString:@"normal"]) {
+        [self setNeedsDisplay];
     }
-    [self setNeedsDisplay];
 }
 
-- (id)initWithFrame:(CGRect)frame
-{
-    self = [super initWithFrame:frame];
-    if (self) {
-        self.backgroundColor = [UIColor clearColor];
-    }
-    return self;
-}
 - (void)drawRect:(CGRect)rect
 {
     CGContextRef ctx = UIGraphicsGetCurrentContext();
-    if ([self.style isEqualToString:@"normal"]) {
+    if ([[self.style lowercaseString] isEqualToString:@"normal"]) {
         [self drawNormalStyle:ctx withRect:rect];
     }
-    else
-    {
-        [self drawCircleStyle:ctx withRect:rect];
-    }
 }
-- (void)changeAngle
-{
-    _angleInterval += M_PI * 0.01;
-    if (_angleInterval >= M_PI * 2) _angleInterval = 0;
-    [self setNeedsDisplay];
-}
-- (void)changeProgress
-{
-        _currentProgress +=0.5;
-    if (_currentProgress > self.progress) {
-        [self.animationTimer invalidate];
-        _currentProgress -=0.5;
-        return;
-    }
 
-    [self setNeedsDisplay];
-}
 //绘制带进度的进度条
 - (void)drawNormalStyle:(CGContextRef)ctx withRect:(CGRect)rect
 {
-    CGFloat radius = MIN(rect.size.width, rect.size.height) / 2;
-    CGContextSaveGState(ctx);
-    CGContextSetLineWidth(ctx, self.progressWidth);
-    UIColor *probgc = [doUIModuleHelper GetColorFromString:self.progressBgColor :[UIColor clearColor]];
-    [probgc setStroke];
-
-    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - (self.progressWidth / 2), M_PI * 0, M_PI * 2, 1);
-    CGContextStrokePath(ctx);
-    CGContextRestoreGState(ctx);
-    
-    probgc = [doUIModuleHelper GetColorFromString:self.progressColor :[UIColor clearColor]];
-    [probgc setStroke];
-    CGContextSetLineWidth(ctx, self.progressWidth);
-    CGFloat to =_currentProgress / 100 * 2 *M_PI - 0.5 * M_PI; // 初始值
-    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - (self.progressWidth / 2), -M_PI * 0.5, to, 0);
-    CGContextStrokePath(ctx);
-    
     NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
     attributes[NSFontAttributeName] = [UIFont systemFontOfSize:self.fontSize];
     attributes[NSForegroundColorAttributeName] = [doUIModuleHelper GetColorFromString:self.fontColor :[UIColor clearColor]];
     CGSize fontSize = [self.text sizeWithAttributes:attributes];
     [self.text drawAtPoint:CGPointMake(rect.size.width / 2 - (fontSize.width)/2, rect.size.height / 2 - (fontSize.height / 2)) withAttributes:attributes];
 }
-//绘制不带进度的样式
-- (void)drawCircleStyle:(CGContextRef)ctx withRect:(CGRect)rect
-{
-    CGFloat radius = MIN(rect.size.width, rect.size.height) / 2;
-    CGContextSaveGState(ctx);
-    CGContextSetLineWidth(ctx, self.progressWidth);
-    UIColor *probgc = [doUIModuleHelper GetColorFromString:self.progressBgColor :[UIColor clearColor]];
-    [probgc setStroke];
-    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2, radius - (self.progressWidth / 2), M_PI * 0, M_PI * 2, 1);
-    CGContextStrokePath(ctx);
-    CGContextRestoreGState(ctx);
-    
-    probgc = [doUIModuleHelper GetColorFromString:self.progressColor :[UIColor clearColor]];
-    [probgc setStroke];
-    CGContextSetLineWidth(ctx,self.progressWidth);
-    CGFloat to =  - M_PI * 0.15 + _angleInterval;
-    
-    CGContextAddArc(ctx, rect.size.width / 2, rect.size.height / 2,  radius - (self.progressWidth / 2) , to, _angleInterval, 0);
-    CGContextStrokePath(ctx);
 
+#pragma mark - 背景圆环layer
+- (void)setupBackgroudLayer
+{
+    ringBgLayer = [[CAShapeLayer alloc] initWithLayer:self.layer];
+    ringBgLayer.bounds        = CGRectMake(0, 0, _model.RealWidth, _model.RealHeight);
+    ringBgLayer.position      = CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
+    ringBgLayer.fillColor     = [UIColor clearColor].CGColor;
+    ringBgLayer.lineWidth     = self.progressWidth;
+    ringBgLayer.strokeColor   = [UIColor greenColor].CGColor;
+    ringBgLayer.path          = [self layoutPathWithScale:1.0].CGPath;
+    
+    [self.layer addSublayer:ringBgLayer];
+    
 }
+
+- (UIBezierPath *)layoutPathWithScale: (CGFloat)scale {
+    const double TWO_M_PI   = 2.0 * M_PI;
+    const double startAngle = 0.75 * TWO_M_PI;
+    const double endAngle   = startAngle +scale * TWO_M_PI;
+    CGFloat width           = MIN(_model.RealWidth,_model.RealHeight);
+    CGFloat radius = width /2 - self.progressWidth / 2;
+    NSLog(@"layoutPathWithScale = %f",radius);
+    return [UIBezierPath bezierPathWithArcCenter:CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2)
+                                          radius:radius
+                                      startAngle:startAngle
+                                        endAngle:endAngle
+                                       clockwise:YES];
+}
+#pragma mark - 进度圆环layer
+- (void)setupRingAnimationLayer{
+    UIBezierPath *path = [self layoutPath];
+    progressLayer = [[CAShapeLayer alloc] initWithLayer:self.layer];
+    progressLayer.bounds        = CGRectMake(0, 0, _model.RealWidth, _model.RealHeight);
+    progressLayer.position      = CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
+    progressLayer.fillColor     = [UIColor clearColor].CGColor;
+    progressLayer.lineWidth     = self.progressWidth;
+    progressLayer.strokeColor   = [UIColor yellowColor].CGColor;
+    progressLayer.path          = path.CGPath;
+    progressLayer.strokeStart = 0.0f;
+    progressLayer.strokeEnd = _currentProgress;
+    [self.layer addSublayer: progressLayer];
+}
+
+- (UIBezierPath *)layoutPath{
+    const double TWO_M_PI   = 2.0 * M_PI;
+    const double startAngle = 0.75 * TWO_M_PI;
+    const double endAngle   = startAngle + TWO_M_PI;
+    CGFloat width           = MIN(_model.RealWidth,_model.RealHeight);
+    
+    return [UIBezierPath bezierPathWithArcCenter:CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2)
+                                          radius:width / 2 - self.progressWidth / 2
+                                      startAngle:startAngle
+                                        endAngle:endAngle
+                                       clockwise:YES];
+}
+#pragma mark 指示器圆弧layer
+- (void)setupAnimationLayer{
+    indicatorLayer         = [[CAShapeLayer alloc] initWithLayer:self.layer];
+    indicatorLayer.bounds                = CGRectMake(0, 0, _model.RealWidth, _model.RealHeight);
+    indicatorLayer.position              =CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
+    indicatorLayer.fillColor             = [UIColor clearColor].CGColor;
+    indicatorLayer.lineWidth             = self.progressWidth;
+    indicatorLayer.lineCap               = @"round";
+    indicatorLayer.strokeColor           = [UIColor redColor].CGColor;
+    indicatorLayer.path                  = [self layoutPathWithScale:0.25].CGPath;
+    
+    indicatorLayer.strokeStart = 0.f;//路径开始位置
+    indicatorLayer.strokeEnd = 0.1f;//路径结束位置
+    
+    [self.layer addSublayer:indicatorLayer];
+}
+
+- (void)startAnimation
+{
+    CAKeyframeAnimation *anim = [CAKeyframeAnimation animation];
+    anim.keyPath = @"transform";
+    NSValue *val1 = [NSValue valueWithCATransform3D:CATransform3DMakeRotation(0.0 * M_PI, 0, 0, 1)];
+    NSValue *val2 = [NSValue valueWithCATransform3D:CATransform3DMakeRotation(0.5 * M_PI, 0, 0, 1)];
+    NSValue *val3 = [NSValue valueWithCATransform3D:CATransform3DMakeRotation(1.0 * M_PI, 0, 0, 1)];
+    NSValue *val4 = [NSValue valueWithCATransform3D:CATransform3DMakeRotation(1.5 * M_PI, 0, 0, 1)];
+    NSValue *val5 = [NSValue valueWithCATransform3D:CATransform3DMakeRotation(2.0 * M_PI, 0, 0, 1)];
+    anim.values = @[val1, val2, val3, val4, val5];
+    anim.duration = 2.0;
+    anim.removedOnCompletion = NO;
+    anim.fillMode = kCAFillModeForwards;
+    anim.repeatCount = MAXFLOAT;
+    anim.timingFunction=[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+    [indicatorLayer addAnimation:anim forKey:@"ringLayerAnimation"];
+}
+
+- (void)stopAnimation{
+    [indicatorLayer removeAnimationForKey:@"ringLayerAnimation"];
+}
+
+
 #pragma mark - doIUIModuleView协议方法（必须）<大部分情况不需修改>
 - (BOOL) OnPropertiesChanging: (NSMutableDictionary *) _changedValues
 {
