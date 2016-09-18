@@ -53,6 +53,7 @@
     [self setupBackgroudLayer];
     
     [self change_style:self.style];
+    _currentProgress = 0.0f;
 }
 //销毁所有的全局对象
 - (void) OnDispose
@@ -66,6 +67,8 @@
     
     //重新调整视图的x,y,w,h
     [doUIModuleHelper OnRedraw:_model];
+    [self changePositon];
+    
 }
 
 #pragma mark - TYPEID_IView协议方法（必须）
@@ -81,11 +84,13 @@
 {
     //自己的代码实现
     self.fontColor = newValue;
+    [self setNeedsDisplay];
 }
 - (void)change_fontSize:(NSString *)newValue
 {
     //自己的代码实现
     self.fontSize = [doUIModuleHelper GetDeviceFontSize:[[doTextHelper Instance] StrToInt:newValue :[[_model GetProperty:@"fontSize"].DefaultValue intValue]] :_model.XZoom :_model.YZoom];
+    [self setNeedsDisplay];
 }
 - (void)change_progress:(NSString *)newValue
 {
@@ -125,7 +130,7 @@
     //自己的代码实现
     CGFloat w = MIN(_model.RealWidth, _model.RealHeight) / 2;
     
-    self.progressWidth = [newValue floatValue];
+    self.progressWidth = [newValue floatValue]* _model.XZoom;
     
     self.progressWidth = (self.progressWidth / 100.0f ) * w;
     if (w < self.progressWidth) {
@@ -149,11 +154,13 @@
     self.style = newValue;
     if ([newValue isEqualToString:@"cycle"])
     {
+        [progressLayer removeFromSuperlayer];
         [self setupAnimationLayer];
         [self startAnimation];
     }
     else
     {
+        [indicatorLayer removeFromSuperlayer];
         [self setupRingAnimationLayer];
     }
 }
@@ -193,7 +200,7 @@
     ringBgLayer.position      = CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
     ringBgLayer.fillColor     = [UIColor clearColor].CGColor;
     ringBgLayer.lineWidth     = self.progressWidth;
-    ringBgLayer.strokeColor   = [UIColor greenColor].CGColor;
+    ringBgLayer.strokeColor   = [UIColor whiteColor].CGColor;
     ringBgLayer.path          = [self layoutPathWithScale:1.0].CGPath;
     
     [self.layer addSublayer:ringBgLayer];
@@ -221,7 +228,7 @@
     progressLayer.position      = CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
     progressLayer.fillColor     = [UIColor clearColor].CGColor;
     progressLayer.lineWidth     = self.progressWidth;
-    progressLayer.strokeColor   = [UIColor yellowColor].CGColor;
+    progressLayer.strokeColor   = [UIColor blackColor].CGColor;
     progressLayer.path          = path.CGPath;
     progressLayer.strokeStart = 0.0f;
     progressLayer.strokeEnd = _currentProgress;
@@ -248,7 +255,7 @@
     indicatorLayer.fillColor             = [UIColor clearColor].CGColor;
     indicatorLayer.lineWidth             = self.progressWidth;
     indicatorLayer.lineCap               = @"round";
-    indicatorLayer.strokeColor           = [UIColor redColor].CGColor;
+    indicatorLayer.strokeColor           = [UIColor blackColor].CGColor;
     indicatorLayer.path                  = [self layoutPathWithScale:0.25].CGPath;
     
     indicatorLayer.strokeStart = 0.f;//路径开始位置
@@ -256,7 +263,24 @@
     
     [self.layer addSublayer:indicatorLayer];
 }
-
+- (void)changePositon
+{
+    ringBgLayer.bounds        = CGRectMake(0, 0, _model.RealWidth, _model.RealHeight);
+    ringBgLayer.position      = CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
+    ringBgLayer.path          = [self layoutPathWithScale:1.0].CGPath;
+    
+    if ([[self.style lowercaseString]isEqualToString:@"circle"]) {
+        indicatorLayer.bounds                = CGRectMake(0, 0, _model.RealWidth, _model.RealHeight);
+        indicatorLayer.position              =CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
+        indicatorLayer.path                  = [self layoutPathWithScale:0.25].CGPath;
+    }
+    else
+    {
+        progressLayer.bounds        = CGRectMake(0, 0, _model.RealWidth, _model.RealHeight);
+        progressLayer.position      = CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
+        progressLayer.path          = [self layoutPath].CGPath;
+    }
+}
 - (void)startAnimation
 {
     CAKeyframeAnimation *anim = [CAKeyframeAnimation animation];
