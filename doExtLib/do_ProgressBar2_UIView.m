@@ -68,7 +68,8 @@
     //重新调整视图的x,y,w,h
     [doUIModuleHelper OnRedraw:_model];
     [self changePositon];
-    
+    NSString *width = [_model GetPropertyValue:@"progressWidth"];
+    [self change_progressWidth:width];
 }
 
 #pragma mark - TYPEID_IView协议方法（必须）
@@ -127,12 +128,15 @@
 }
 - (void)change_progressWidth:(NSString *)newValue
 {
+    if ([newValue isEqualToString:@""]) {
+        return;
+    }
     //自己的代码实现
     CGFloat w = MIN(_model.RealWidth, _model.RealHeight) / 2;
     
-    self.progressWidth = [newValue floatValue]* _model.XZoom;
+//    self.progressWidth = [newValue floatValue]* _model.XZoom;
     
-    self.progressWidth = (self.progressWidth / 100.0f ) * w;
+    self.progressWidth = ([newValue floatValue] / 100.0f ) * w;
     if (w < self.progressWidth) {
         self.progressWidth = w;
     }
@@ -259,7 +263,7 @@
     indicatorLayer.path                  = [self layoutPathWithScale:0.25].CGPath;
     
     indicatorLayer.strokeStart = 0.f;//路径开始位置
-    indicatorLayer.strokeEnd = 0.1f;//路径结束位置
+    indicatorLayer.strokeEnd = 0.18f;//路径结束位置
     
     [self.layer addSublayer:indicatorLayer];
 }
@@ -269,7 +273,7 @@
     ringBgLayer.position      = CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
     ringBgLayer.path          = [self layoutPathWithScale:1.0].CGPath;
     
-    if ([[self.style lowercaseString]isEqualToString:@"circle"]) {
+    if ([[self.style lowercaseString]isEqualToString:@"cycle"]) {
         indicatorLayer.bounds                = CGRectMake(0, 0, _model.RealWidth, _model.RealHeight);
         indicatorLayer.position              =CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
         indicatorLayer.path                  = [self layoutPathWithScale:0.25].CGPath;
