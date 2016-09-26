@@ -118,7 +118,7 @@
 {
     //自己的代码实现
     UIColor *probgc = [doUIModuleHelper GetColorFromString:newValue :[UIColor clearColor]];
-    if ([[self.style lowercaseString] isEqualToString:@"normal"]) {
+    if ([[self.style lowercaseString] isEqualToString:@"circle"]) {
         progressLayer.strokeColor = probgc.CGColor;
     }
     else
@@ -258,8 +258,10 @@
     indicatorLayer.position              =CGPointMake(_model.RealWidth / 2, _model.RealHeight / 2);
     indicatorLayer.fillColor             = [UIColor clearColor].CGColor;
     indicatorLayer.lineWidth             = self.progressWidth;
-    indicatorLayer.lineCap               = @"round";
-    indicatorLayer.strokeColor           = [UIColor blackColor].CGColor;
+    indicatorLayer.lineCap               = @"butt";
+    NSString *colorStr = [_model GetPropertyValue:@"progressColor"];
+    UIColor *color = [doUIModuleHelper GetColorFromString:colorStr :[UIColor blackColor]];
+    indicatorLayer.strokeColor           = color.CGColor;
     indicatorLayer.path                  = [self layoutPathWithScale:0.25].CGPath;
     
     indicatorLayer.strokeStart = 0.f;//路径开始位置
