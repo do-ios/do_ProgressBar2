@@ -118,12 +118,12 @@
 {
     //自己的代码实现
     UIColor *probgc = [doUIModuleHelper GetColorFromString:newValue :[UIColor clearColor]];
-    if ([[self.style lowercaseString] isEqualToString:@"circle"]) {
-        progressLayer.strokeColor = probgc.CGColor;
+    if ([[self.style lowercaseString] isEqualToString:@"cycle"]) {
+        indicatorLayer.strokeColor = probgc.CGColor;
     }
     else
     {
-        indicatorLayer.strokeColor = probgc.CGColor;
+        progressLayer.strokeColor = probgc.CGColor;
     }
 }
 - (void)change_progressWidth:(NSString *)newValue
